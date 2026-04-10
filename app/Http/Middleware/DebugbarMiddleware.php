@@ -3,39 +3,32 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Debugbar;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class DebugbarMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        // Rutas donde se ocultará Debugbar
-        $excludedRoutes = ['login', 'register', 'password.request'];
+        $hasDebugbar = class_exists(\Debugbar::class);
 
-        // Verificar si la ruta actual está en la lista
-        if (in_array($request->route()->getName(), $excludedRoutes)) {
-            Debugbar::disable();
-        }
+        if ($hasDebugbar) {
+            $excludedRoutes = ['login', 'register', 'password.request'];
+            $routeName = optional($request->route())->getName();
 
-        // Solo mostrar Debugbar a usuarios con un rol específico
-        if (auth()->check()) {
-            $user = auth()->user();
-            // dump(session()->get('roles')['roles']);
-            $roles = session()->get('roles')['roles'];
-
-            // Cambia "admin" por el rol o condición que necesites
-            if ( !in_array(1, $roles) ) { 
-                Debugbar::disable();
+            if (in_array($routeName, $excludedRoutes, true)) {
+                \Debugbar::disable();
             }
-        } else {
-            Debugbar::disable(); // Deshabilitar si no hay usuario autenticado
+
+            if (auth()->check()) {
+                $roles = session()->get('roles.roles', []);
+
+                if (!in_array(1, $roles, true)) {
+                    \Debugbar::disable();
+                }
+            } else {
+                \Debugbar::disable();
+            }
         }
 
         return $next($request);
